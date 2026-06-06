@@ -35,6 +35,7 @@ MiniSIEM cho phép người dùng:
 
 ## Cấu trúc dự án
 
+```
 MiniSIEM/
 ├── app/
 │   ├── main.py              # Streamlit dashboard
@@ -51,6 +52,7 @@ MiniSIEM/
 │   └── architecture.png     # System architecture diagram
 ├── requirements.txt
 └── README.md
+```
 
 --- 
 
