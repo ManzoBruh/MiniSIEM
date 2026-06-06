@@ -1,0 +1,4 @@
+streamlit
+scapy
+requests
+sqlite3
