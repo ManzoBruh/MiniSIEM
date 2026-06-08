@@ -1,112 +1,149 @@
-# MiniSIEM - Personal Security Dashboard
+# 🛡️ MiniSIEM — Hệ thống giám sát bảo mật mạng cá nhân
 
-Đây là một hệ thông Security Information and Event Management (SIEM) Dashboard nhỏ nhằm mục đích cho cá nhân và một hệ thống công ty quy mô nhỏ
-MiniSIEM cho phép người dùng:
-- Upload packet capture từ Wireshark
-- Theo dõi trực tiếp hệ thống mạng
-- Nhận thông báo thời gian thực về các hành vi lạ
-- Tất cả từ một browser-based dashboard
+MiniSIEM là một hệ thống giám sát bảo mật mạng cá nhân
+mã nguồn mở, được xây dựng trên nền tảng các công nghệ
+đã được kiểm chứng trong môi trường doanh nghiệp.
 
-----
-
-## Tính năng
-
-- **PCAP file analyst** - Upload '.pcap' và in ra tất cả nội dung đang chạy trên network
-- **Threat classification** - Tự động Flag event dưới dạng Critical, Severe, Caution, Low, Notice, Suspicious
-- **AbuseIPDB intergration** - So chéo IP dựa trên hệ thống database kiểm IP
-- **ARP spoof detection** - Cảnh báo khi có nguy cơ bị Man-in-the-middle trong hệ thống mạng
-- **Live traffic monitoring** - Thu thập và phân tích hệ thống mạng theo thời gian thực
-- **SQLite event storage** - Tất cả event được lưu trữ trên lịch sử, tìm kiếm và dữ liệu truy vấn
-- **Export report** - Cho phép xuất thông tin dưới dạng CSV
-
-----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Dashboard UI | Python + Streamlit |
-| Packet parsing | Scapy |
-| Database | SQLite |
-| Threat intel | AbuseIPDB API, VirusTotal API |
-| Version control | Git + GitHub |
+Mục tiêu: mang lại khả năng giám sát bảo mật chuyên nghiệp
+đến tay người dùng cá nhân — miễn phí, nhẹ, và triển khai
+chỉ bằng một câu lệnh.
 
 ---
 
-## Cấu trúc dự án
+## 🏗️ Kiến trúc hệ thống
 
-```
-MiniSIEM/
-├── app/
-│   ├── main.py              # Streamlit dashboard
-│   ├── parser.py            # Pcap file parser
-│   ├── detection.py         # Detection rule engine
-│   ├── database.py          # SQLite handler
-│   ├── threat_intel.py      # AbuseIPDB + VirusTotal API calls
-│   └── arp_monitor.py       # Live ARP spoof detection
-├── data/
-│   └── events.db            # Local SQLite database
-├── tests/
-│   └── test_parser.py       # Unit tests
-├── docs/
-│   └── architecture.png     # System architecture diagram
-├── requirements.txt
-└── README.md
-```
+[Traffic mạng / File .pcap]
+↓
+[Zeek — Network IDS]
+Phân tích gói tin, tạo structured logs JSON
+↓
+[Promtail — Log Shipper]
+Thu thập log, gắn labels, đẩy vào Loki
+↓
+[Grafana Loki — Log Database]
+Lưu trữ log tối ưu, index theo labels
+↓
+[Grafana — Visualization]
+Dashboard real-time, truy vấn LogQL
+↓
+[Người dùng — Browser]
+localhost:3000
 
---- 
+---
 
-## Bắt đầu
+## 🧰 Tech stack
+
+| Tầng | Công nghệ | Lý do |
+|---|---|---|
+| Network IDS | Zeek | Phân rã dữ liệu mạng chi tiết dạng JSON, rất nhẹ |
+| Log Shipper | Promtail | Thu thập và chuyển tiếp log thời gian thực |
+| Log Database | Grafana Loki | Lưu trữ log tối ưu, không index toàn bộ dữ liệu |
+| Visualization | Grafana | Dashboard giám sát real-time, truy vấn LogQL |
+| Triển khai | Docker Compose | Cô lập môi trường, chạy hệ thống bằng 1 câu lệnh |
+| Quản lý mã nguồn | Git + GitHub | Chuẩn công nghiệp |
+
+---
+
+## ⚡ Quick Start
 
 ### Yêu cầu
-- Python 3.10+
-- Tshark / Wireshark
-- AbuseIPDB API Key
+- Docker Desktop 4.0+
+- RAM tối thiểu 4GB
+- Windows 10/11 (WSL2), Linux, hoặc macOS
 
 ### Cài đặt
 
 ```bash
+# 1. Clone repository
 git clone https://github.com/ManzoBruh/MiniSIEM.git
 cd MiniSIEM
-pip install -r requirements.txt
-streamlit run app/main.py
+
+# 2. Tạo file cấu hình
+cp .env.example .env
+
+# 3. Khởi động hệ thống
+docker compose up -d
+
+# 4. Mở dashboard
+# Truy cập http://localhost:3000
+# Username: admin
+# Password: xem file .env
+```
+
+### Phân tích file pcap
+
+```bash
+# Chạy Zeek với file pcap của bạn
+docker exec minisiem-zeek zeek -r /samples/your-file.pcap local
+
+# Log sẽ tự động xuất hiện trên Grafana
 ```
 
 ---
 
-## Cấp độ báo động
+## 📊 Dashboards
 
-| Level | Màu sắc | Ý nghĩa |
-|---|---|---|
-| Critical | 🔴 Red | Xác nhận đang bị tấn công, Malware C2, exploit |
-| Severe | 🟠 Orange | Mức đe dọa có tín hiệu cao, port scanning, brute force |
-| Suspicious | 🟡 Yellow | Hành vi bất thường cao, ports lạ, traffic có hướng di chuyển lạ |
-| Caution | 🔵 Blue | Không nhận ra IP, truy cập từ nguồn ngoài, truy cập đột biến |
-| Low | 🟢 Green | Hành vi bất thường thấp, không đáng kể nhưng nên log lại |
-| Notice | ⚪ Grey | Chỉ dạng thông tin, services phổ thông, whitelisted IPs |
+| Dashboard | Mô tả |
+|---|---|
+| Overview | Tổng quan traffic, tổng số kết nối, alerts |
+| Network | Chi tiết kết nối, DNS queries, HTTP traffic |
+| Security | Cảnh báo Zeek, anomalies, port scan detection |
 
 ---
 
+## 📁 Cấu trúc thư mục
 
-## Roadmap
+MiniSIEM/
+├── docker-compose.yml       # Stack deployment
+├── .env.example             # Config template
+├── zeek/config/             # Zeek configuration
+├── promtail/config/         # Promtail configuration
+├── loki/config/             # Loki configuration
+├── grafana/                 # Grafana config + dashboards
+├── samples/                 # Sample pcap files
+├── docs/                    # Documentation + diary
+└── tests/                   # Test cases
 
-- [x] Project setup & architecture design
-- [ ] Pcap parser
-- [ ] AbuseIPDB integration
-- [ ] Detection Level (6-level phân cấp: Critical → Notice)
-- [ ] Streamlit dashboard
-- [ ] Live traffic capture
-- [ ] ARP spoof detection
-- [ ] VirusTotal integration
-- [ ] Đầy đủ documentation & hướng dẫn sử dụng
-
----
-
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-> Được xây dựng thuộc dự án thực tập phù hợp với yêu cầu tiếp cận
-> thực tiễn trong công cụ an ninh mạng.
+## 🎯 Tính năng
+
+- ✅ Phân tích file `.pcap` với Zeek
+- ✅ Giám sát mạng real-time
+- ✅ Dashboard tổng quan lưu lượng mạng
+- ✅ Phát hiện port scan tự động
+- ✅ Phát hiện DNS tunneling
+- ✅ Tìm kiếm log bằng LogQL
+- ✅ Triển khai bằng một câu lệnh
+- ✅ RAM sử dụng dưới 350MB
+
+---
+
+## 📖 Tài liệu
+
+- [Nhật ký thực tập 16 tuần](docs/diary/)
+- [Tài liệu kỹ thuật](docs/)
+- [Kết quả kiểm thử](tests/)
+
+---
+
+## 🔮 Hướng phát triển (v2)
+
+- Tích hợp AbuseIPDB threat intelligence
+- Email/Telegram alerting
+- Mobile dashboard
+- Machine learning based anomaly detection
+- Wazuh integration
+
+---
+
+## 📄 License
+
+MIT License — xem [LICENSE](LICENSE)
+
+---
+
+> Dự án thực tập tại Cửa Hàng Vi Tính DuLi  
+> Người hướng dẫn: Châu Văn Mau  
+> Sinh viên: ManzoBruh
