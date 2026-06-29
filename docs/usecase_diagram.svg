@@ -1,0 +1,89 @@
+<svg viewBox="0 0 900 700" xmlns="http://www.w3.org/2000/svg" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#aaaaaa"/>
+    </marker>
+  </defs>
+  <rect width="900" height="700" fill="#ffffff"/>
+  <text x="450" y="36" text-anchor="middle" font-size="18" font-weight="bold" fill="#222222">MiniSIEM — Use Case Diagram</text>
+
+  <!-- System boundary -->
+  <rect x="160" y="55" width="620" height="630" rx="10" fill="none" stroke="#333333" stroke-width="1.5"/>
+  <text x="450" y="78" text-anchor="middle" font-size="15" font-weight="bold" fill="#222222">Hệ thống MiniSIEM</text>
+
+  <!-- Actor: Nguoi dung -->
+  <circle cx="70" cy="380" r="14" fill="#ffffff" stroke="#444444" stroke-width="2"/>
+  <line x1="70" y1="394" x2="70" y2="430" stroke="#444444" stroke-width="2"/>
+  <line x1="50" y1="408" x2="90" y2="408" stroke="#444444" stroke-width="2"/>
+  <line x1="70" y1="430" x2="52" y2="455" stroke="#444444" stroke-width="2"/>
+  <line x1="70" y1="430" x2="88" y2="455" stroke="#444444" stroke-width="2"/>
+  <text x="70" y="472" text-anchor="middle" font-size="13" fill="#222222">Người dùng</text>
+
+  <!-- Actor: He thong -->
+  <rect x="812" y="345" width="60" height="80" rx="4" fill="#f3f3f3" stroke="#555555" stroke-width="1.5"/>
+  <line x1="818" y1="365" x2="866" y2="365" stroke="#555555" stroke-width="1"/>
+  <line x1="818" y1="383" x2="866" y2="383" stroke="#555555" stroke-width="1"/>
+  <line x1="818" y1="401" x2="866" y2="401" stroke="#555555" stroke-width="1"/>
+  <text x="842" y="442" text-anchor="middle" font-size="13" fill="#222222">Hệ thống</text>
+
+  <!-- Use cases - left column (user) -->
+  <g fill="#E6F1FB" stroke="#6c8ebf" stroke-width="1.5">
+    <ellipse cx="330" cy="120" rx="130" ry="32"/>
+    <ellipse cx="330" cy="200" rx="130" ry="32"/>
+    <ellipse cx="330" cy="280" rx="130" ry="32"/>
+    <ellipse cx="330" cy="360" rx="130" ry="32"/>
+    <ellipse cx="330" cy="440" rx="130" ry="32"/>
+    <ellipse cx="330" cy="520" rx="130" ry="32"/>
+    <ellipse cx="330" cy="600" rx="130" ry="32"/>
+  </g>
+
+  <!-- Use cases - right column (system) -->
+  <g fill="#E1F5EE" stroke="#1D9E75" stroke-width="1.5">
+    <ellipse cx="620" cy="200" rx="130" ry="32"/>
+    <ellipse cx="620" cy="360" rx="130" ry="32"/>
+    <ellipse cx="620" cy="520" rx="130" ry="32"/>
+  </g>
+
+  <!-- Labels left -->
+  <g font-size="12" fill="#0C447C" text-anchor="middle">
+    <text x="330" y="124">UC01 — Xem tổng quan traffic</text>
+    <text x="330" y="204">UC02 — Xem danh sách kết nối</text>
+    <text x="330" y="284">UC03 — Xem DNS queries</text>
+    <text x="330" y="364">UC04 — Xem cảnh báo bảo mật</text>
+    <text x="330" y="444">UC05 — Tìm kiếm log (LogQL)</text>
+    <text x="330" y="524">UC06 — Phân tích file pcap</text>
+    <text x="330" y="604">UC10 — Triển khai hệ thống</text>
+  </g>
+
+  <!-- Labels right -->
+  <g font-size="12" fill="#085041" text-anchor="middle">
+    <text x="620" y="196">UC07 — Giám sát mạng real-time</text>
+    <text x="620" y="212">(Zeek)</text>
+    <text x="620" y="356">UC08 — Thu thập và ship log</text>
+    <text x="620" y="372">(Promtail → Loki)</text>
+    <text x="620" y="516">UC09 — Tạo cảnh báo tự động</text>
+    <text x="620" y="532">(Zeek notice.log)</text>
+  </g>
+
+  <!-- Connections user -> left UCs -->
+  <g stroke="#aaaaaa" stroke-width="1">
+    <line x1="95" y1="395" x2="200" y2="120"/>
+    <line x1="95" y1="395" x2="200" y2="200"/>
+    <line x1="95" y1="395" x2="200" y2="280"/>
+    <line x1="95" y1="395" x2="200" y2="360"/>
+    <line x1="95" y1="395" x2="200" y2="440"/>
+    <line x1="95" y1="395" x2="200" y2="520"/>
+    <line x1="95" y1="395" x2="200" y2="600"/>
+  </g>
+
+  <!-- Connections system -> right UCs -->
+  <g stroke="#aaaaaa" stroke-width="1">
+    <line x1="812" y1="385" x2="750" y2="200"/>
+    <line x1="812" y1="385" x2="750" y2="360"/>
+    <line x1="812" y1="385" x2="750" y2="520"/>
+  </g>
+
+  <!-- Include arrows UC06->UC07 -->
+  <line x1="460" y1="520" x2="490" y2="360" stroke="#aaaaaa" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow2)"/>
+  <text x="450" y="440" font-size="10" fill="#888888">«include»</text>
+</svg>
