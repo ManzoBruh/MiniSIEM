@@ -173,20 +173,8 @@ curl.exe -4 -A "ZmEu" http://testmynids.org?botnet=1
 
 ---
 
-### Scenario 2: Port Scanning Detection
-```powershell
-# From attacker machine
-1..100 | % { 
-  (New-Object Net.Sockets.TcpClient).Connect("TARGET_IP", $_) 
-  "Port $_ is open!" 
-} 2>$null
-```
 
-**Expected Result:** Multiple "Attempted Recon" logs appear with attacker IP address.
-
----
-
-### Scenario 3: Web Application Attack Simulation
+### Scenario 2: Web Application Attack Simulation
 ```bash
 # From Linux machine
 sudo apt install sqlmap -y
@@ -474,20 +462,7 @@ curl.exe -4 -A "ZmEu" http://testmynids.org?botnet=1
 
 ---
 
-### Kịch Bản 2: Phát Hiện Dò Quét Cổng
-```powershell
-# Từ máy Attacker
-1..100 | % { 
-  (New-Object Net.Sockets.TcpClient).Connect("IP_NẠNCỦA_BẠN", $_) 
-  "Port $_ is open!" 
-} 2>$null
-```
-
-**Kết Quả:** Xuất hiện hàng loạt log "Attempted Recon" với IP kẻ tấn công.
-
----
-
-### Kịch Bản 3: Giả Lập Tấn Công Ứng Dụng Web
+### Kịch Bản 2: Giả Lập Tấn Công Ứng Dụng Web
 ```bash
 # Từ máy Linux
 sudo apt install sqlmap -y
