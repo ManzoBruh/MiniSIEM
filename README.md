@@ -1,149 +1,163 @@
-# 🛡️ MiniSIEM — Hệ thống giám sát bảo mật mạng cá nhân
+🛡️ MiniSIEM — Hệ Thống Giám Sát An Toàn Thông Tin Tinh Gọn
 
-MiniSIEM là một hệ thống giám sát bảo mật mạng cá nhân
-mã nguồn mở, được xây dựng trên nền tảng các công nghệ
-đã được kiểm chứng trong môi trường doanh nghiệp.
+MiniSIEM là một hệ thống giám sát an toàn thông tin (SIEM) phân tán mã nguồn mở, được tối ưu hóa cho các môi trường cá nhân, phòng lab hoặc doanh nghiệp quy mô nhỏ.
 
-Mục tiêu: mang lại khả năng giám sát bảo mật chuyên nghiệp
-đến tay người dùng cá nhân — miễn phí, nhẹ, và triển khai
-chỉ bằng một câu lệnh.
+Hệ thống kết hợp sức mạnh phân tích log tập trung của Wazuh và khả năng phát hiện xâm nhập mạng (IDS) theo thời gian thực của Suricata Engine, giúp phát hiện kịp thời các mối đe dọa như quét cổng (Port Scanning), mã độc, hay truy cập Web bất thường.
 
----
+🏗️ Kiến Trúc Hệ Thống
 
-## 🏗️ Kiến trúc hệ thống
+Hệ thống được triển khai theo mô hình phân tán (Client-Server) trên môi trường ảo hóa:
 
-[Traffic mạng / File .pcap]
-↓
-[Zeek — Network IDS]
-Phân tích gói tin, tạo structured logs JSON
-↓
-[Promtail — Log Shipper]
-Thu thập log, gắn labels, đẩy vào Loki
-↓
-[Grafana Loki — Log Database]
-Lưu trữ log tối ưu, index theo labels
-↓
-[Grafana — Visualization]
-Dashboard real-time, truy vấn LogQL
-↓
-[Người dùng — Browser]
-localhost:3000
+[ Lưu Lượng Mạng / Kẻ Tấn Công ]
+             ↓
+[ Windows Endpoint (Máy Nạn Nhân) ]
+  ├── Suricata IDS (Phân tích gói tin real-time)
+  │     └─ Ghi log cảnh báo → C:\...\suricata\log\eve.json
+  └── Wazuh Agent (Theo dõi file & Chuyển tiếp log an toàn)
+             ↓  (Gửi log qua Port 1514 - Bridged Network)
+[ Ubuntu Server 24.04 (Wazuh Manager) ]
+  ├── Wazuh Indexer (Lưu trữ và đánh chỉ mục)
+  ├── Wazuh Server (Chấm điểm Severity & So khớp tập luật)
+  └── Wazuh Dashboard (Giao diện hiển thị trực quan)
+             ↓
+[ Quản Trị Viên (Web Browser - HTTPS) ]
 
----
 
-## 🧰 Tech stack
+🧰 Tech Stack
 
-| Tầng | Công nghệ | Lý do |
-|---|---|---|
-| Network IDS | Zeek | Phân rã dữ liệu mạng chi tiết dạng JSON, rất nhẹ |
-| Log Shipper | Promtail | Thu thập và chuyển tiếp log thời gian thực |
-| Log Database | Grafana Loki | Lưu trữ log tối ưu, không index toàn bộ dữ liệu |
-| Visualization | Grafana | Dashboard giám sát real-time, truy vấn LogQL |
-| Triển khai | Docker Compose | Cô lập môi trường, chạy hệ thống bằng 1 câu lệnh |
-| Quản lý mã nguồn | Git + GitHub | Chuẩn công nghiệp |
+Tầng / Vai Trò
 
----
+Công Nghệ
 
-## ⚡ Quick Start
+Mô Tả & Lý Do Lựa Chọn
 
-### Yêu cầu
-- Docker Desktop 4.0+
-- RAM tối thiểu 4GB
-- Windows 10/11 (WSL2), Linux, hoặc macOS
+Máy Chủ Phân Tích
 
-### Cài đặt
+Ubuntu Server 24.04
 
-```bash
-# 1. Clone repository
-git clone https://github.com/ManzoBruh/MiniSIEM.git
-cd MiniSIEM
+Nền tảng Linux mã nguồn mở, tối ưu tài nguyên cho Server.
 
-# 2. Tạo file cấu hình
-cp .env.example .env
+SIEM & XDR Core
 
-# 3. Khởi động hệ thống
-docker compose up -d
+Wazuh Manager 4.x
 
-# 4. Mở dashboard
-# Truy cập http://localhost:3000
-# Username: admin
-# Password: xem file .env
-```
+Thu thập log tập trung, phân tích, và cung cấp OpenSearch Dashboard.
 
-### Phân tích file pcap
+Network IDS
 
-```bash
-# Chạy Zeek với file pcap của bạn
-docker exec minisiem-zeek zeek -r /samples/your-file.pcap local
+Suricata 7.0 (Windows)
 
-# Log sẽ tự động xuất hiện trên Grafana
-```
+Động cơ kiểm tra sâu gói tin mạng (DPI), kết hợp tập luật Emerging Threats.
 
----
+Log Collector
 
-## 📊 Dashboards
+Wazuh Agent
 
-| Dashboard | Mô tả |
-|---|---|
-| Overview | Tổng quan traffic, tổng số kết nối, alerts |
-| Network | Chi tiết kết nối, DNS queries, HTTP traffic |
-| Security | Cảnh báo Zeek, anomalies, port scan detection |
+Dịch vụ siêu nhẹ chạy ngầm, tự động đẩy log eve.json về trung tâm.
 
----
+Môi Trường
 
-## 📁 Cấu trúc thư mục
+Oracle VirtualBox
+
+Cung cấp mạng Bridged để giả lập kết nối như phần cứng vật lý.
+
+⚡ Cài Đặt & Vận Hành Nhanh
+
+1. Cài đặt Trung Tâm Giám Sát (Ubuntu Server)
+
+Sử dụng script tự động của Wazuh:
+
+curl -sO https://packages.wazuh.com/4.x/wazuh-install.sh
+sudo bash wazuh-install.sh -a
+
+
+(Ghi lại Username và Password được cấp cuối quá trình cài đặt).
+
+2. Cài đặt Cảm Biến (Windows Endpoint)
+
+Tạo thư mục log: Chạy PowerShell quyền Admin: New-Item -ItemType Directory -Force -Path "C:\Users\Admin\MiniSIEM\suricata\log"
+
+Cập nhật suricata.yaml: Đổi default-log-dir trỏ về thư mục vừa tạo (dùng dấu /).
+
+Tải luật (Rules):
+
+Invoke-WebRequest -Uri "https://rules.emergingthreats.net/open/suricata-7.0/emerging-all.rules" -OutFile "C:\Users\Admin\MiniSIEM\suricata\suricata.rules"
+
+
+Cấu hình Agent: Bổ sung block sau vào C:\Program Files (x86)\ossec-agent\ossec.conf để agent đọc log mạng:
+
+<localfile>
+  <log_format>json</log_format>
+  <location>C:\Users\Admin\MiniSIEM\suricata\log\eve.json</location>
+</localfile>
+
+
+Khởi động lại Agent: Restart-Service -Name WazuhSvc
+
+🚀 Kịch Bản Kiểm Thử (Demo Tấn Công)
+
+Đầu tiên, khởi chạy Suricata trên máy Windows (Nạn nhân):
+
+cd "C:\Users\Admin\MiniSIEM\suricata"
+.\suricata.exe -c suricata.yaml -i "\Device\NPF_{YOUR_ADAPTER_ID}" -S suricata.rules -vv
+
+
+Sau đó, thực hiện các kịch bản tấn công:
+
+Kịch bản 1: Giả lập Botnet rà quét lỗ hổng
+(Mở PowerShell mới, ép dùng IPv4)
+
+curl.exe -4 -A "ZmEu" http://testmynids.org?botnet=1
+
+
+👉 Kết quả: Dashboard ngay lập tức cảnh báo mức độ Critical/High.
+
+Kịch bản 2: Tấn công Dò quét Cổng (Port Scanning)
+(Từ máy Attacker)
+
+1..100 | % { echo ((New-Object Net.Sockets.TcpClient).Connect("IP_NẠN_NHÂN", $_)) "Port $_ is open!" } 2>$null
+
+
+👉 Kết quả: Xuất hiện hàng loạt log Attempted Recon hiển thị IP kẻ tấn công.
+
+📊 Tùy Chỉnh Bảng Điều Khiển (Custom Dashboards)
+
+Dự án đã xây dựng các Visualization riêng biệt trên nền tảng OpenSearch Dashboards để biến Wazuh thành một SOC (Security Operations Center) thực thụ:
+
+The Threat Landscape (Pie Chart): Phân tích tỷ trọng các cấp độ cảnh báo (Rule Levels).
+
+Top Attack Vectors (Bar Chart): Thống kê các loại hình tấn công phổ biến nhất dựa trên chữ ký Suricata.
+
+Attacker IPs (Data Table): Bảng xếp hạng và trích xuất trực tiếp địa chỉ IP của các tác nhân độc hại.
+
+📁 Cấu Trúc Thư Mục
 
 MiniSIEM/
-├── docker-compose.yml       # Stack deployment
-├── .env.example             # Config template
-├── zeek/config/             # Zeek configuration
-├── promtail/config/         # Promtail configuration
-├── loki/config/             # Loki configuration
-├── grafana/                 # Grafana config + dashboards
-├── samples/                 # Sample pcap files
-├── docs/                    # Documentation + diary
-└── tests/                   # Test cases
+├── docs/                        # Tài liệu hệ thống & Báo cáo
+│   └── User_Guide_VN.md         # Hướng dẫn sử dụng & Fix lỗi
+├── suricata/
+│   ├── suricata.yaml            # Cấu hình Engine mạng
+│   └── suricata.rules           # (Ignored) Tập luật tải động
+├── wazuh/
+│   └── ossec.conf               # File cấu hình mẫu cho Agent
+├── .gitignore                   # Loại bỏ file .exe và log cục bộ
+└── README.md                    # Tài liệu dự án
 
 
----
+🎯 Chức Năng Cốt Lõi
 
-## 🎯 Tính năng
+✅ Tích hợp thành công Suricata IDS vào kiến trúc Wazuh Manager.
 
-- ✅ Phân tích file `.pcap` với Zeek
-- ✅ Giám sát mạng real-time
-- ✅ Dashboard tổng quan lưu lượng mạng
-- ✅ Phát hiện port scan tự động
-- ✅ Phát hiện DNS tunneling
-- ✅ Tìm kiếm log bằng LogQL
-- ✅ Triển khai bằng một câu lệnh
-- ✅ RAM sử dụng dưới 350MB
+✅ Thu thập, giải mã và phân tích luồng JSON (eve.json) theo thời gian thực.
 
----
+✅ Phát hiện mạnh mẽ các kỹ thuật Scanning, Botnet, Web Vulnerability qua Ruleset chuẩn.
 
-## 📖 Tài liệu
+✅ Lọc dữ liệu linh hoạt trên OpenSearch và quản lý Dashboard tập trung.
 
-- [Nhật ký thực tập 16 tuần](docs/diary/)
-- [Tài liệu kỹ thuật](docs/)
-- [Kết quả kiểm thử](tests/)
+✅ Tối ưu hóa bộ nhớ cho Endpoint (Mức tiêu thụ CPU/RAM thấp khi chạy nền).
 
----
+Dự án thực tập tại Cửa Hàng Vi Tính DuLi
 
-## 🔮 Hướng phát triển (v2)
+Người hướng dẫn: Châu Văn Mau
 
-- Tích hợp AbuseIPDB threat intelligence
-- Email/Telegram alerting
-- Mobile dashboard
-- Machine learning based anomaly detection
-- Wazuh integration
-
----
-
-## 📄 License
-
-MIT License — xem [LICENSE](LICENSE)
-
----
-
-> Dự án thực tập tại Cửa Hàng Vi Tính DuLi  
-> Người hướng dẫn: Châu Văn Mau  
-> Sinh viên: ManzoBruh
+Sinh viên thực hiện: ManzoBruh
