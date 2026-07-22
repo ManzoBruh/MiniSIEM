@@ -6,126 +6,139 @@
 
 ## 2. Data Flow
 
-Internet/LAN traffic
+[Endpoint — Windows/Linux]
+├── Wazuh Agent (native)
+│   ├── Thu thập Windows Event Log / syslog
+│   ├── File Integrity Monitoring (FIM)
+│   ├── Vulnerability scan
+│   └── Đọc /var/log/suricata/eve.json
+└── Suricata (cài native cùng endpoint)
+      └── Lắng nghe network interface
+        → Ghi alerts vào eve.json
+          ↓ (TLS encrypted, port 1514)
+[Wazuh Manager — Docker container]
+├── Nhận log từ agents
+├── Decode và parse log
+├── So khớp rules database
+└── Tạo alerts với level 1-15
 ↓
-[Zeek container]
-
-Lắng nghe eth0/wlan0
-Phân tích từng packet
-Output: /zeek/logs/current/*.log
+[Wazuh Indexer — Docker container]
+└── Lưu trữ và index events (OpenSearch)
 ↓
-[Promtail container]
-Theo dõi /zeek/logs/current/
-Gắn labels: job="zeek", log_type="conn|dns|http..."
-Push vào Loki API
-↓
-[Loki container]
-Nhận log streams
-Index theo labels
-Lưu trữ dạng compressed chunks
-↓
-[Grafana container]
-Datasource: Loki (http://loki:3100)
-Query bằng LogQL
-Render dashboards
-↓
-[Người dùng - Browser]
-localhost:3000
+[Wazuh Dashboard — Ubuntu Server]
+└── Giao diện web: https://<Wazuh-ip>
 
 ## 3. Docker Network
 
-Tất cả containers nằm trong một Docker network riêng:
+wazuh-network (bridge)
+├── wazuh.manager
+│   ├── port 1514/tcp  — agent log ingestion
+│   ├── port 1515/tcp  — agent enrollment
+│   └── port 55000/tcp — REST API
+├── wazuh.indexer
+│   └── port 9200      — internal only
+└── wazuh.dashboard
+└── port 443        — exposed to host (HTTPS)
 
-minisiem_network (bridge)
-├── zeek        (no exposed port - internal only)
-├── promtail    (port 9080 - metrics)
-├── loki        (port 3100 - internal)
-└── grafana     (port 3000 - exposed to host)
+Chỉ Dashboard được expose ra host machine qua port 443.
+Wazuh Agent kết nối về Manager qua IP của host machine
+port 1514 và 1515.
 
-Chỉ Grafana được expose ra host machine. Người dùng chỉ cần
-truy cập `localhost:3000`.
+## 4. Wazuh Alert Schema
 
-## 4. Volume Mapping
+### 4.1 Security Event (từ Wazuh Agent)
+| Trường | Kiểu | Mô tả |
+|---|---|---|
+| timestamp | datetime | Thời gian sự kiện xảy ra |
+| agent.id | string | ID agent (001, 002...) |
+| agent.name | string | Hostname của endpoint |
+| agent.ip | string | IP của endpoint |
+| rule.id | integer | ID rule kích hoạt alert |
+| rule.description | string | Mô tả loại tấn công |
+| rule.level | integer | Severity (1-15) |
+| rule.groups | array | Nhóm rule (authentication, scan...) |
+| data.srcip | string | IP nguồn gây ra sự kiện |
+| data.dstip | string | IP đích bị ảnh hưởng |
+| full_log | string | Nội dung log gốc từ endpoint |
 
+### 4.2 Suricata EVE Alert (từ Network IDS)
+| Trường | Kiểu | Mô tả |
+|---|---|---|
+| timestamp | datetime | Thời gian alert |
+| event_type | string | alert / dns / http / tls / flow |
+| src_ip | string | IP nguồn tấn công |
+| src_port | integer | Port nguồn |
+| dest_ip | string | IP đích |
+| dest_port | integer | Port đích |
+| proto | string | TCP / UDP / ICMP |
+| alert.signature | string | Tên rule (ET SCAN Nmap...) |
+| alert.severity | integer | 1=critical, 3=low |
+| alert.category | string | Attempted Recon, Malware... |
+
+## 5. Cấu hình Suricata
+
+### suricata.yaml (phần EVE JSON output)
 ```yaml
-volumes:
-  zeek_logs:     # Zeek logs → shared với Promtail
-  loki_data:     # Loki storage (persistent)
-  grafana_data:  # Grafana config và dashboards (persistent)
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: /var/log/suricata/eve.json
+      types:
+        - alert
+        - dns
+        - http
+        - tls
+        - flow
+
+default-rule-path: /var/lib/suricata/rules
+rule-files:
+  - suricata.rules
 ```
 
-## 5. Zeek Log Schema
+## 6. Cấu hình Wazuh Agent đọc Suricata
 
-### conn.log (kết nối mạng)
-| Field | Type | Mô tả |
-|---|---|---|
-| ts | timestamp | Thời gian bắt đầu kết nối |
-| uid | string | Unique connection ID |
-| id.orig_h | addr | IP nguồn |
-| id.orig_p | port | Port nguồn |
-| id.resp_h | addr | IP đích |
-| id.resp_p | port | Port đích |
-| proto | enum | tcp/udp/icmp |
-| service | string | Dịch vụ phát hiện được |
-| duration | interval | Thời lượng kết nối |
-| orig_bytes | count | Bytes gửi |
-| resp_bytes | count | Bytes nhận |
-| conn_state | string | Trạng thái kết nối |
+### ossec.conf — Suricata integration
+```xml
+<ossec_config>
+  <localfile>
+    <log_format>json</log_format>
+    <location>/var/log/suricata/eve.json</location>
+  </localfile>
 
-### dns.log (DNS queries)
-| Field | Type | Mô tả |
-|---|---|---|
-| ts | timestamp | Thời gian query |
-| uid | string | Connection ID |
-| id.orig_h | addr | IP nguồn |
-| query | string | Tên domain được query |
-| qtype_name | string | Loại record (A, AAAA, MX…) |
-| answers | array | Danh sách IP trả về |
+  <syscheck>
+    <frequency>300</frequency>
+    <directories>/etc,/usr/bin,/usr/sbin</directories>
+  </syscheck>
+</ossec_config>
+```
 
-### notice.log (cảnh báo Zeek)
-| Field | Type | Mô tả |
-|---|---|---|
-| ts | timestamp | Thời gian cảnh báo |
-| note | enum | Loại cảnh báo |
-| msg | string | Mô tả chi tiết |
-| src | addr | IP nguồn |
-| dst | addr | IP đích |
-| severity | string | Mức độ nghiêm trọng |
+## 7. Wazuh Dashboard Layout
 
-## 6. Grafana Dashboard Design
+### Security Overview
 
-### Overview Dashboard
+┌────────────────────────────────────────────────┐
+│    Wazuh — Security Dashboard                  │
+├──────────┬──────────┬───────────┬──────────────┤
+│  Alerts  │  Agents  │ Level 12+ │   Suricata   │
+│  1,247   │ 3 Active │     15    │  87 alerts   │
+├──────────┴──────────┴───────────┴──────────────┤
+│  [Security events timeline — last 24h]         │
+├──────────────────────┬─────────────────────────┤
+│  [Top 5 rules]       │  [Agents status]        │
+│  Authentication fail │  001 DESKTOP ● Active   │
+│  ET SCAN Nmap        │  002 LAPTOP  ● Active   │
+│  Suricata Alert      │  003 SERVER  ○ Down     │
+└──────────────────────┴─────────────────────────┘
 
-┌─────────────────────────────────────────────┐
-│  🛡️ MiniSIEM — Security Overview            │
-├──────────┬──────────┬──────────┬────────────┤
-│ Kết nối  │  Alerts  │  DNS     │  Bytes     │
-│  1,247   │    3     │  432     │  45.2 MB   │
-├──────────┴──────────┴──────────┴────────────┤
-│  [Traffic theo thời gian - Time series]     │
-├─────────────────────┬───────────────────────┤
-│ [Top 10 src IP]     │[Protocol distribution]│
-└─────────────────────┴───────────────────────┘
-
-### Security Alerts Dashboard
-
-┌─────────────────────────────────────────────┐
-│  🚨 Security Alerts                         │
-├─────────────────────────────────────────────┤
-│  [Alerts timeline - Time series]            │
-├─────────────────────────────────────────────┤
-│  Timestamp | Type | Src IP | Description    │
-│  14:32:01  | Scan | 1.2.3.4| Port scan      │
-│  14:31:55  | DNS  | 5.6.7.8| DNS tunneling  │
-└─────────────────────────────────────────────┘
-
-## 7. Tiêu chuẩn đánh giá sản phẩm
+## 8. Tiêu chuẩn đánh giá sản phẩm
 
 | Tiêu chí | Mức đạt | Mức tốt |
 |---|---|---|
-| Deploy | docker compose up hoạt động | Chạy < 60 giây |
-| Zeek | Parse được pcap file | Real-time capture |
-| Loki | Nhận và lưu log | Query < 2 giây |
-| Grafana | 3 dashboard cơ bản | Auto-refresh 5s |
-| RAM | < 512MB | < 256MB |
-| Docs | README đầy đủ | Video demo |
+| Server deployment | Ubuntu Server hoạt động | Khởi động < 2 phút / Cài đặt < 10 phút | 
+| Agent connect | Agent kết nối Manager | < 30 giây |
+| Real-time alert | < 60 giây | < 30 giây |
+| Suricata | Phát hiện port scan | Full ET ruleset active |
+| Dashboard | Hiển thị events + agents | Auto-refresh real-time |
+| RAM server | < 8GB | < 6GB |
+| Tài liệu | README đầy đủ | Video demo 5 phút |

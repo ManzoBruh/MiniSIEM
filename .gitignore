@@ -1,24 +1,6 @@
-# Environment
-.env
-*.env
-
-# Zeek logs (too large for GitHub)
-zeek/logs/*.log
-zeek/logs/current/
-
-# Python (leftover from old version)
-__pycache__/
-*.pyc
-*.pyo
-.venv/
-venv/
-data/events.db
-data/tmp_*
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Docker volumes
-grafana/data/
-loki/data/
+suricata/suricata.exe
+suricata/suricata.rules
+suricata/log/*
+*.exe
+*.log
+*.tmp

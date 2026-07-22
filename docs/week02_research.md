@@ -2,136 +2,111 @@
 
 ## 1. Tổng quan kiến trúc MiniSIEM
 
-MiniSIEM được xây dựng theo mô hình pipeline một chiều:
+MiniSIEM được xây dựng theo mô hình agent-based SIEM:
 
-[Mạng] → [Zeek] → [Log files] → [Promtail] → [Loki] → [Grafana]
+[Endpoint + Wazuh Agent] → [Wazuh Manager] → [Wazuh Indexer] → [Wazuh Dashboard]
+↑
+[Suricata] → eve.json → [Wazuh Agent]
 
+## 2. Wazuh — Open Source SIEM Platform
 
-Mỗi thành phần có trách nhiệm riêng biệt và độc lập với nhau,
-cho phép thay thế hoặc nâng cấp từng phần mà không ảnh hưởng
-đến toàn bộ hệ thống.
+### Lịch sử và tổng quan
+Wazuh được fork từ OSSEC năm 2015 và hiện là một trong những
+nền tảng SIEM mã nguồn mở phổ biến nhất thế giới với hơn
+10 triệu lượt download. Wazuh được sử dụng rộng rãi trong
+các doanh nghiệp, tổ chức chính phủ và môi trường học thuật.
 
-## 2. Zeek — Network IDS
+### Kiến trúc 3 thành phần
 
-### Cách hoạt động
-Zeek lắng nghe trên một network interface (hoặc đọc file pcap)
-và phân tích từng gói tin theo từng layer. Thay vì chỉ so khớp
-signature, Zeek xây dựng "connection state" cho mỗi kết nối và
-tạo ra log có cấu trúc khi kết nối kết thúc.
-
-### Các log file quan trọng
-
-| Log file | Nội dung |
+| Thành phần | Chức năng |
 |---|---|
-| conn.log | Mọi kết nối TCP/UDP/ICMP |
-| dns.log | DNS queries và responses |
-| http.log | HTTP requests và responses |
-| ssl.log | SSL/TLS handshakes |
-| notice.log | Cảnh báo bảo mật tự động |
-| weird.log | Hành vi mạng bất thường |
-| files.log | File transfers qua mạng |
+| Wazuh Agent | Chạy trên endpoint, thu thập log, FIM, vulnerability scan |
+| Wazuh Manager | Nhận log từ agents, phân tích, tương quan, tạo alerts |
+| Wazuh Indexer | Lưu trữ events (OpenSearch/Elasticsearch) |
+| Wazuh Dashboard | Giao diện web visualization |
 
-### Format log (JSON)
-```json
-{
-  "ts": 1718000000.0,
-  "uid": "CXjN7h3TH6YQ1lZSh",
-  "id.orig_h": "192.168.1.100",
-  "id.orig_p": 54321,
-  "id.resp_h": "8.8.8.8",
-  "id.resp_p": 53,
-  "proto": "udp",
-  "service": "dns",
-  "duration": 0.002,
-  "orig_bytes": 45,
-  "resp_bytes": 120,
-  "conn_state": "SF"
-}
-```
+### Tính năng cốt lõi
 
-## 3. Promtail — Log Shipper
+**Log Analysis:**
+Agent thu thập log từ Windows Event Log, syslog, ứng dụng
+và gửi về Manager. Manager áp dụng rules để phát hiện
+hành vi đáng ngờ và tạo alerts với severity level 1-15.
 
-### Cách hoạt động
-Promtail theo dõi (tail) các file log của Zeek theo thời gian
-thực. Mỗi dòng log mới được gắn nhãn (label) và đẩy vào Loki
-qua HTTP API.
+**File Integrity Monitoring (FIM):**
+Giám sát thay đổi bất thường trong file hệ thống —
+phát hiện khi file bị tạo, sửa, xóa trái phép.
 
-### Cấu hình cơ bản
-```yaml
-server:
-  http_listen_port: 9080
+**Vulnerability Detection:**
+Tự động scan và báo cáo CVE trên các package đã cài đặt.
 
-clients:
-  - url: http://loki:3100/loki/api/v1/push
+**Active Response:**
+Tự động block IP, kill process khi phát hiện tấn công.
 
-scrape_configs:
-  - job_name: zeek
-    static_configs:
-      - targets: ['localhost']
-        labels:
-          job: zeek
-          __path__: /zeek/logs/current/*.log
-```
+## 3. Suricata — Network IDS/IPS
 
-## 4. Grafana Loki — Log Database
+### Tổng quan
+Suricata được phát triển bởi OISF (Open Information Security
+Foundation) từ năm 2009. Khác với Zeek (behavioral analysis),
+Suricata sử dụng signature-based detection — so khớp traffic
+với database rules (Emerging Threats) để phát hiện tấn công.
 
-### Tại sao chọn Loki thay vì Elasticsearch
+### Tại sao chọn Suricata thay vì Zeek
 
-| Tiêu chí | Loki | Elasticsearch |
+| Tiêu chí | Suricata | Zeek |
 |---|---|---|
-| Index | Chỉ index labels | Index toàn bộ content |
-| RAM usage | ~100MB | 2GB+ |
-| Storage | Compressed chunks | Large inverted index |
-| Query language | LogQL | Lucene/KQL |
-| Phù hợp | Log storage | Full-text search |
+| Windows support | ✓ | ✗ (dropped) |
+| Wazuh integration | ✓ Native | Partial |
+| Signature detection | ✓ | ✗ |
+| Emerging Threats rules | ✓ | ✗ |
+| Real-time alerting | ✓ | Log-based only |
 
-### LogQL cơ bản
-```logql
-# Lấy tất cả log từ Zeek
-{job="zeek"}
+### EVE JSON Output
+Suricata ghi alerts ra file eve.json với cấu trúc:
+````json
+{
+  "timestamp": "2025-01-22T14:32:01",
+  "event_type": "alert",
+  "src_ip": "10.1.17.215",
+  "dest_ip": "192.168.1.1",
+  "proto": "TCP",
+  "alert": {
+    "signature": "ET SCAN Nmap Scripting Engine",
+    "severity": 2,
+    "category": "Attempted Recon"
+  }
+}
+````
 
-# Lọc DNS queries đến 8.8.8.8
-{job="zeek", log_type="dns"} |= "8.8.8.8"
+## 4. Ubuntu Server LTS — Deployment
 
-# Đếm số kết nối mỗi phút
-count_over_time({job="zeek", log_type="conn"}[1m])
-```
+Wazuh cung cấp hỗ trợ tối ưu cho nền tảng linux, cho phép
+triển khai toàn bộ server stack (Manager + Indexer +
+Dashboard) bằng một câu lệnh:
 
-## 5. Grafana — Visualization
+````bash
+curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-install.sh –a
+````
 
-### Các panel type sẽ sử dụng
+Wazuh Agent được cài native trên OS — không dùng Docker.
 
-| Panel | Dùng để hiển thị |
-|---|---|
-| Time series | Lưu lượng mạng theo thời gian |
-| Table | Danh sách kết nối, DNS queries |
-| Stat | Tổng số alerts, kết nối |
-| Logs | Raw log viewer |
-| Geomap | Phân bố địa lý IP nguồn |
+## 5. So sánh với giải pháp cũ (Zeek + Loki + Grafana)
 
-## 6. Docker Compose — Deployment
+| Tiêu chí | Zeek+Loki+Grafana | Wazuh+Suricata |
+|---|---|---|
+| Agent-based | ✗ | ✓ |
+| Real-time alerting | Cần cấu hình | ✓ Built-in |
+| Windows native | ✗ (Zeek) | ✓ (Agent + Suricata) |
+| Endpoint monitoring | ✗ | ✓ |
+| Vulnerability scan | ✗ | ✓ |
+| FIM | ✗ | ✓ |
+| Phức tạp hơn | Ít | Trung bình |
 
-### Lý do chọn Docker Compose
-- Toàn bộ stack chạy bằng 1 câu lệnh
-- Môi trường nhất quán giữa dev và production
-- Dễ dàng chia sẻ và reproduce
-- Không cần cài đặt thủ công từng tool
+## 6. Kết luận nghiên cứu
 
-### Services sẽ định nghĩa
-```yaml
-services:
-  zeek:      # Network IDS
-  promtail:  # Log shipper
-  loki:      # Log database
-  grafana:   # Dashboard
-```
-
-## 7. Kết luận nghiên cứu
-
-Stack Zeek + Promtail + Loki + Grafana là lựa chọn tối ưu cho
-MiniSIEM vì:
-- Tất cả đều miễn phí và mã nguồn mở
-- Tổng RAM sử dụng ước tính dưới 512MB
-- Có thể chạy trên máy tính cá nhân bình thường
-- Được sử dụng trong môi trường production thực tế
-- Cộng đồng hỗ trợ lớn, tài liệu đầy đủ
+Wazuh + Suricata là stack tối ưu cho MiniSIEM vì:
+- Wazuh Agent chạy native trên Windows — giải quyết
+  được vấn đề live monitoring mà Zeek không làm được
+- Suricata hỗ trợ Windows đầy đủ với Npcap
+- Wazuh có real-time alerting built-in
+- Toàn bộ miễn phí và mã nguồn mở
+- Được dùng trong môi trường production thực tế

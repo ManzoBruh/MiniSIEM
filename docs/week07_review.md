@@ -2,46 +2,43 @@
 
 ## 1. Tổng hợp yêu cầu
 
-### Yêu cầu chức năng (F01-F10)
-Hệ thống MiniSIEM cần thực hiện 10 chức năng chính bao gồm
-giám sát mạng real-time, thu thập và lưu trữ log, hiển thị
-dashboard, tìm kiếm log, phân tích pcap, và triển khai
-bằng một câu lệnh.
-
-### Yêu cầu phi chức năng
-Hệ thống phải hoạt động trên máy cá nhân thông thường với
-RAM dưới 512MB, độ trễ dashboard dưới 5 giây, tương thích
-đa nền tảng, và hoàn toàn mã nguồn mở.
+Hệ thống MiniSIEM cần thực hiện 10 chức năng chính (F01-F10)
+bao gồm: Wazuh Agent deployment, log collection real-time,
+alerting tự động, Network IDS bằng Suricata, dashboard tập
+trung, agent management, vulnerability detection, FIM,
+pcap analysis và one-command deployment.
 
 ## 2. Ràng buộc
 
 | Loại | Ràng buộc |
 |---|---|
-| Phần cứng | Máy tính cá nhân, RAM tối thiểu 4GB |
-| Phần mềm | Docker Desktop bắt buộc |
+| Phần cứng | RAM server tối thiểu 8GB |
+| Phần mềm | Ubuntu Server/VirtualBox bắt buộc cho server |
 | Thời gian | Hoàn thành trong 16 tuần |
 | Chi phí | Miễn phí hoàn toàn |
 | Kỹ thuật | Chỉ dùng công nghệ mã nguồn mở |
+| Agent | Cài native trên OS, không dùng Docker |
 
 ## 3. Tiêu chuẩn đánh giá
 
 | Tiêu chí | Mức đạt | Mức tốt |
 |---|---|---|
-| Deploy | docker compose up hoạt động | Chạy < 60 giây |
-| Zeek | Parse pcap file | Real-time capture |
-| Loki | Nhận và lưu log | Query < 2 giây |
-| Grafana | 3 dashboard | Auto-refresh 5s |
-| RAM | < 512MB | < 256MB |
-| Docs | README đầy đủ | Video demo |
+| Server deploy | Ubuntu Server | < 3 phút |
+| Agent connect | Kết nối Manager | < 30 giây |
+| Real-time alert | < 60 giây | < 30 giây |
+| Suricata | Port scan | Full ET rules |
+| Dashboard | Events + agents | Auto-refresh |
+| RAM | < 8GB | < 6GB |
+| Docs | README | Video demo |
 
 ## 4. Kế hoạch thực hiện
 
 | Tuần | Nội dung |
 |---|---|
-| 8 | Docker Compose stack, Zeek config, Loki config |
-| 9 | Promtail config, Grafana datasource, dashboard cơ bản |
+| 8 | Triển khai Wazuh qua Ubuntu Server, cài Agent |
+| 9 | Tích hợp Suricata, cấu hình eve.json → Wazuh |
 | 10 | Demo giữa kỳ với mentor |
-| 11 | Tối ưu, thêm dashboard nâng cao, Zeek custom scripts |
+| 11 | Tối ưu, thêm custom rules, sửa lỗi |
 | 12 | Testing đầy đủ |
 | 13 | Deploy, user manual, demo video |
 | 14 | Thu thập phản hồi |
@@ -50,8 +47,6 @@ RAM dưới 512MB, độ trễ dashboard dưới 5 giây, tương thích
 
 ## 5. Kết luận giai đoạn thiết kế
 
-Toàn bộ giai đoạn phân tích và thiết kế (tuần 1-6) đã hoàn
-thành. Hệ thống MiniSIEM sử dụng stack Zeek + Promtail +
-Loki + Grafana, triển khai bằng Docker Compose, đáp ứng
-đầy đủ yêu cầu về tính đơn giản, hiệu năng và chi phí.
-Dự án sẵn sàng bước vào giai đoạn triển khai từ tuần 8.
+Toàn bộ giai đoạn phân tích và thiết kế (tuần 1-6) đã
+hoàn thành. MiniSIEM sử dụng Wazuh + Suricata — giải quyết được vấn đề cốt lõi mà stack Zeek+Loki+Grafana không làm được: agent-based monitoring và real-time alerting trên Windows. Dự án sẵn sàng bước vào giai đoạn triển khai.
+
